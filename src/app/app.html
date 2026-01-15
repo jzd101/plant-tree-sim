@@ -1,0 +1,166 @@
+<div class="h-screen bg-gradient-to-br from-green-100 to-blue-100 flex overflow-hidden font-sans">
+
+  <!-- Left Side: Tree (80%) -->
+  <div
+    class="w-4/5 h-full relative flex items-center justify-center p-8 bg-white/30 backdrop-blur-sm cursor-grab active:cursor-grabbing overflow-hidden"
+    (mousedown)="onMouseDown($event)" (mousemove)="onMouseMove($event)" (mouseup)="onMouseUp()"
+    (mouseleave)="onMouseUp()" (wheel)="onWheel($event)">
+
+    <!-- Procedural SVG Plant -->
+    <!-- Adjusted viewBox to handle larger trees and centered better -->
+    <svg [attr.viewBox]="viewBox()" class="w-full h-full drop-shadow-2xl overflow-visible pointer-events-none">
+      <!-- Pointer events none on SVG so drag passes through to container, BUT fruits need click? -->
+      <!-- Actually, we want SVG to capture clicks on fruits, but container to capture drag anywhere else. -->
+      <!-- Put pointer-events-auto on fruits/paths -->
+
+      <g transform="translate(30, 100) scale(1.5)" class="pointer-events-auto">
+        @for (path of visualPaths(); track $index) {
+        @if (path.isCircle) {
+        <!-- Scale up coordinates for larger viewbox if needed, or rely on SVG scaling -->
+        <!-- Since logic uses 100,200 as base, we transform to center it in 400,500 -->
+        <!-- Translate(100, 250) scale(2) to make it bigger? Let's just wrap group -->
+        <ellipse [attr.cx]="path.cx" [attr.cy]="path.cy" [attr.rx]="path.rx || path.r" [attr.ry]="path.ry || path.r"
+          [attr.fill]="path.fill" class="transition-all duration-500" />
+        } @else {
+        <path [attr.d]="path.d" [attr.stroke]="path.stroke" [attr.stroke-width]="path.width" [attr.fill]="path.fill"
+          stroke-linecap="round" class="transition-all duration-500" />
+        }
+        }
+
+        <!-- Render Golden Fruits (Clickable) -->
+        @for (fruit of renderedFruits(); track $index) {
+        <g class="cursor-pointer hover:scale-125 transition-transform origin-center" style="transform-box: fill-box"
+          (click)="harvestFruit(fruit.id); $event.stopPropagation()">
+          <!-- Glow -->
+          <circle [attr.cx]="fruit.cx" [attr.cy]="fruit.cy" r="8" fill="#FCD34D" class="animate-pulse opacity-50" />
+          <!-- Fruit Body -->
+          <circle [attr.cx]="fruit.cx" [attr.cy]="fruit.cy" r="5" fill="#F59E0B" stroke="#FBBF24" stroke-width="1" />
+          <!-- Shine -->
+          <circle [attr.cx]="fruit.cx - 1" [attr.cy]="fruit.cy - 1" r="2" fill="white" opacity="0.6" />
+        </g>
+        }
+      </g>
+    </svg>
+
+    <!-- Current Stage Label (Floating) -->
+    <div
+      class="absolute bottom-8 left-8 bg-white/80 backdrop-blur-md px-6 py-2 rounded-full shadow-lg text-gray-700 font-bold uppercase tracking-widest pointer-events-none select-none">
+      {{ stage() }}
+    </div>
+
+    <!-- Reset View Button -->
+    <button (click)="resetView()"
+      class="absolute bottom-8 right-8 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg hover:shadow-xl active:scale-95 transition-all text-gray-700 pointer-events-auto"
+      title="Reset View">
+      <span class="text-xl">🎯</span>
+    </button>
+  </div>
+
+  <!-- Right Side: Console (20%) -->
+  <div class="w-1/5 h-full bg-white/90 backdrop-blur-xl shadow-2xl border-l border-white/50 flex flex-col z-10">
+
+    <!-- Header Section -->
+    <div class="p-6 border-b border-gray-100">
+      <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-green-600 to-emerald-800 mb-4">
+        Plant Care
+      </h1>
+
+      <div class="space-y-3">
+        <div class="flex justify-between items-center bg-amber-50 p-2 rounded-lg border border-amber-100">
+          <span class="text-xs font-bold text-amber-800 uppercase">Level</span>
+          <span class="text-lg font-bold text-amber-700">{{ level() }}</span>
+        </div>
+        <div class="flex justify-between items-center bg-rose-50 p-2 rounded-lg border border-rose-100">
+          <span class="text-xs font-bold text-rose-800 uppercase">Time Left</span>
+          <span class="text-lg font-bold text-rose-700">{{ lifespan() }}s</span>
+        </div>
+
+        <!-- Gold Display -->
+        <div class="flex justify-between items-center bg-yellow-50 p-2 rounded-lg border border-yellow-100">
+          <span class="text-xs font-bold text-yellow-800 uppercase">Gold</span>
+          <span class="text-lg font-bold text-yellow-700">💰 {{ gold() }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Section -->
+    <div class="p-6 flex-1 overflow-y-auto">
+      <div class="mb-2 flex justify-between text-sm">
+        <span class="font-medium text-gray-600">XP Progress</span>
+        <span class="font-bold text-blue-600">{{ experience() }} / {{ xpRequired() }}</span>
+      </div>
+      <div class="h-4 bg-gray-200 rounded-full overflow-hidden shadow-inner mb-8">
+        <div class="h-full bg-gradient-to-r from-blue-400 to-indigo-500 transition-all duration-300 ease-out"
+          [style.width.%]="(experience() / xpRequired()) * 100"></div>
+      </div>
+
+      <!-- Auto-Fertilizer Stats -->
+      @if (fertilizerLevel() > 0) {
+      <div class="mb-4 bg-green-50 p-3 rounded-xl border border-green-100">
+        <div class="text-xs font-bold text-green-800 uppercase mb-1">Passives Active</div>
+        <div class="text-sm text-green-700">Auto-Fertilizer Lvl {{ fertilizerLevel() }}</div>
+        <div class="text-xs text-green-600">+{{ (fertilizerLevel() * 50).toLocaleString() }} XP / min</div>
+      </div>
+      }
+    </div>
+
+    <!-- Actions Section (Bottom) -->
+    <div class="p-6 bg-gray-50 border-t border-gray-200">
+      @if (isDead()) {
+      <div class="text-center">
+        <div class="text-red-500 font-bold text-lg mb-2">Game Over 💀</div>
+        <button (click)="reset()"
+          class="w-full py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold shadow-md hover:shadow-lg hover:-translate-y-1 transition-all active:scale-95">
+          Replant 🌰
+        </button>
+      </div>
+      } @else {
+      <div class="space-y-3">
+        <!-- Shop Item: Buy Auto-Fertilizer -->
+        <button (click)="buyAutoFertilizer()" [disabled]="gold() < 5"
+          class="w-full group flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 hover:from-purple-100 hover:to-purple-200 active:scale-95 transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:grayscale">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">🤖</span>
+            <div class="flex flex-col items-start">
+              <span class="font-bold text-purple-700 text-sm">Auto-Fertilizer</span>
+              <span class="text-[0.6rem] text-purple-500">50 XP/min</span>
+            </div>
+          </div>
+          <div class="flex flex-col items-end">
+            <span class="font-bold text-yellow-600 text-sm">5 💰</span>
+            <span class="text-[0.6rem] text-purple-400">Upgrade</span>
+          </div>
+        </button>
+
+        <button (click)="waterPlant()"
+          class="w-full group flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 hover:from-blue-100 hover:to-blue-200 active:scale-95 transition-all shadow-sm hover:shadow-md">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">💧</span>
+            <span class="font-bold text-blue-700">Water</span>
+          </div>
+          <span class="text-xs font-bold text-blue-500 bg-white/50 px-2 py-1 rounded">+20 XP</span>
+        </button>
+
+        <button (click)="fertilize()"
+          class="w-full group flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200 hover:from-amber-100 hover:to-amber-200 active:scale-95 transition-all shadow-sm hover:shadow-md">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">⚡️</span>
+            <span class="font-bold text-amber-700">Fertilize</span>
+          </div>
+          <span class="text-xs font-bold text-amber-500 bg-white/50 px-2 py-1 rounded">+50 XP</span>
+        </button>
+
+        <button (click)="tillSoil()"
+          class="w-full group flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-stone-50 to-stone-100 border border-stone-200 hover:from-stone-100 hover:to-stone-200 active:scale-95 transition-all shadow-sm hover:shadow-md">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">🚜</span>
+            <span class="font-bold text-stone-700">Till Soil</span>
+          </div>
+          <span class="text-xs font-bold text-stone-500 bg-white/50 px-2 py-1 rounded">+80 XP</span>
+        </button>
+      </div>
+      }
+    </div>
+
+  </div>
+</div>
