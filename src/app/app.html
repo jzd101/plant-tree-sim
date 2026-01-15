@@ -13,7 +13,9 @@
       <!-- Actually, we want SVG to capture clicks on fruits, but container to capture drag anywhere else. -->
       <!-- Put pointer-events-auto on fruits/paths -->
 
-      <g transform="translate(30, 100) scale(1.5)" class="pointer-events-auto">
+      <g transform="translate(30, 100) scale(1.5)"
+        class="pointer-events-auto animate-sway transition-transform duration-500 origin-bottom"
+        [class.animate-grow-pop]="isGrowing()">
         @for (path of visualPaths(); track $index) {
         @if (path.isCircle) {
         <!-- Scale up coordinates for larger viewbox if needed, or rely on SVG scaling -->
@@ -29,8 +31,8 @@
 
         <!-- Render Golden Fruits (Clickable) -->
         @for (fruit of renderedFruits(); track $index) {
-        <g class="cursor-pointer hover:scale-125 transition-transform origin-center" style="transform-box: fill-box"
-          (click)="harvestFruit(fruit.id); $event.stopPropagation()">
+        <g class="cursor-pointer hover:scale-125 transition-transform origin-center animate-float-in"
+          style="transform-box: fill-box" (click)="harvestFruit(fruit.id); $event.stopPropagation()">
           <!-- Glow -->
           <circle [attr.cx]="fruit.cx" [attr.cy]="fruit.cy" r="8" fill="#FCD34D" class="animate-pulse opacity-50" />
           <!-- Fruit Body -->
@@ -70,10 +72,6 @@
           <span class="text-xs font-bold text-amber-800 uppercase">Level</span>
           <span class="text-lg font-bold text-amber-700">{{ level() }}</span>
         </div>
-        <div class="flex justify-between items-center bg-rose-50 p-2 rounded-lg border border-rose-100">
-          <span class="text-xs font-bold text-rose-800 uppercase">Time Left</span>
-          <span class="text-lg font-bold text-rose-700">{{ lifespan() }}s</span>
-        </div>
 
         <!-- Gold Display -->
         <div class="flex justify-between items-center bg-yellow-50 p-2 rounded-lg border border-yellow-100">
@@ -106,29 +104,19 @@
 
     <!-- Actions Section (Bottom) -->
     <div class="p-6 bg-gray-50 border-t border-gray-200">
-      @if (isDead()) {
-      <div class="text-center">
-        <div class="text-red-500 font-bold text-lg mb-2">Game Over 💀</div>
-        <button (click)="reset()"
-          class="w-full py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold shadow-md hover:shadow-lg hover:-translate-y-1 transition-all active:scale-95">
-          Replant 🌰
-        </button>
-      </div>
-      } @else {
       <div class="space-y-3">
-        <!-- Shop Item: Buy Auto-Fertilizer -->
-        <button (click)="buyAutoFertilizer()" [disabled]="gold() < 5"
+        <!-- Shop Item: Instant Fertilizer -->
+        <button (click)="buyInstantFertilizer()" [disabled]="gold() < 3"
           class="w-full group flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 hover:from-purple-100 hover:to-purple-200 active:scale-95 transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:grayscale">
           <div class="flex items-center gap-3">
-            <span class="text-2xl">🤖</span>
+            <span class="text-2xl">🧪</span>
             <div class="flex flex-col items-start">
-              <span class="font-bold text-purple-700 text-sm">Auto-Fertilizer</span>
-              <span class="text-[0.6rem] text-purple-500">50 XP/min</span>
+              <span class="font-bold text-purple-700 text-sm">Instant Fertilizer</span>
+              <span class="text-[0.6rem] text-purple-500">+500 XP & 15% 🌸 Golden Flower</span>
             </div>
           </div>
           <div class="flex flex-col items-end">
-            <span class="font-bold text-yellow-600 text-sm">5 💰</span>
-            <span class="text-[0.6rem] text-purple-400">Upgrade</span>
+            <span class="font-bold text-yellow-600 text-sm">3 💰</span>
           </div>
         </button>
 
@@ -141,25 +129,22 @@
           <span class="text-xs font-bold text-blue-500 bg-white/50 px-2 py-1 rounded">+20 XP</span>
         </button>
 
-        <button (click)="fertilize()"
-          class="w-full group flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200 hover:from-amber-100 hover:to-amber-200 active:scale-95 transition-all shadow-sm hover:shadow-md">
-          <div class="flex items-center gap-3">
-            <span class="text-2xl">⚡️</span>
-            <span class="font-bold text-amber-700">Fertilize</span>
-          </div>
-          <span class="text-xs font-bold text-amber-500 bg-white/50 px-2 py-1 rounded">+50 XP</span>
-        </button>
-
-        <button (click)="tillSoil()"
-          class="w-full group flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-stone-50 to-stone-100 border border-stone-200 hover:from-stone-100 hover:to-stone-200 active:scale-95 transition-all shadow-sm hover:shadow-md">
+        <!-- Till Soil with Cooldown -->
+        @let timeLeft = 60 - ((now() - lastTillTime()) / 1000);
+        @let canTill = timeLeft <= 0 || lastTillTime()===0; <button (click)="tillSoil()" [disabled]="!canTill"
+          class="w-full group flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-stone-50 to-stone-100 border border-stone-200 hover:from-stone-100 hover:to-stone-200 active:scale-95 transition-all shadow-sm hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed">
           <div class="flex items-center gap-3">
             <span class="text-2xl">🚜</span>
-            <span class="font-bold text-stone-700">Till Soil</span>
+            <div class="flex flex-col items-start">
+              <span class="font-bold text-stone-700">Till Soil</span>
+              @if (!canTill) {
+              <span class="text-[0.6rem] text-red-500 font-bold">Cooldown: {{ timeLeft | number:'1.0-0' }}s</span>
+              }
+            </div>
           </div>
           <span class="text-xs font-bold text-stone-500 bg-white/50 px-2 py-1 rounded">+80 XP</span>
-        </button>
+          </button>
       </div>
-      }
     </div>
 
   </div>

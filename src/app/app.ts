@@ -12,19 +12,20 @@ export class App {
   // Game State Signals
   readonly level = signal(1);
   readonly experience = signal(0);
-  readonly lifespan = signal(300); // 5 minutes (300 seconds)
-  readonly isDead = signal(false);
+  readonly lifespan = signal(0); // Deprecated
+  readonly isDead = signal(false); // Deprecated but kept to avoid immediate break, will clean up methods next
+
+  // Cooldown State
+  readonly lastTillTime = signal(0);
+  readonly now = signal(Date.now());
 
   // Computed State
   readonly stage = computed(() => {
-    if (this.isDead()) return 'Dead 💀';
     const lvl = this.level();
-    if (lvl >= 20) return 'Ancient Tree 🌳';
-    if (lvl >= 10) return 'Big Tree 🌳';
-    if (lvl >= 5) return 'Tree 🌳';
-    if (lvl >= 3) return 'Sapling 🌿';
-    if (lvl >= 2) return 'Sprout 🌱';
-    return 'Seed 🌰';
+    if (lvl <= 3) return `Seed Stage ${lvl}`;
+    if (lvl <= 8) return `Sprout Stage ${lvl - 3}`;
+    if (lvl <= 16) return `Sapling Stage ${lvl - 8}`;
+    return `Tree (Growth ${Math.floor((lvl - 17) / 5) + 1})`;
   });
 
   // Calculate XP needed for next level: Level * 100
@@ -62,14 +63,44 @@ export class App {
 
   // Computed Tree Data (Paths and Slots)
   readonly treeData = computed(() => {
-    if (this.isDead()) {
-      return { paths: this.generateTree(this.level(), true).paths, slots: [] };
-    }
     const lvl = this.level();
-    if (lvl === 1) return { paths: this.generateSeed(), slots: [] };
-    if (lvl < 5) return { paths: this.generateSprout(lvl), slots: [] };
+    const paths: any[] = [];
+    const slots: any[] = [];
 
-    return this.generateTree(lvl, false);
+    // Seed Stage (Lv 1-3)
+    if (lvl <= 3) {
+      const seedCount = lvl; // 1, 2, or 3 seeds
+      for (let i = 0; i < seedCount; i++) {
+        // Spread seeds around center
+        const offset = (i - (seedCount - 1) / 2) * 25;
+        paths.push({
+          isCircle: true, cx: 100 + offset, cy: 180, rx: 10, ry: 12, fill: '#8B4513'
+        });
+        // Sparkle/Detail on seed
+        paths.push({
+          d: `M${100 + offset - 5},175 Q${100 + offset},170 ${100 + offset + 5},175`,
+          stroke: '#D2B48C', width: 2, fill: 'none'
+        });
+      }
+      return { paths, slots };
+    }
+
+    // Sprout Stage (Lv 4-8) -> 5 stages
+    if (lvl <= 8) {
+      const sproutStage = lvl - 3; // 1 to 5
+      return this.generateSprout(sproutStage);
+    }
+
+    // Sapling Stage (Lv 9-16) -> 8 stages
+    if (lvl <= 16) {
+      const saplingStage = lvl - 8; // 1 to 8
+      return this.generateSapling(saplingStage);
+    }
+
+    // Tree Stage (Lv 17+) -> Grows every 5 levels
+    // Base size + (Level - 17) scaling, but stepped every 5 levels
+    const treeGrowthStep = Math.floor((lvl - 17) / 5);
+    return this.generateTree(17 + (treeGrowthStep * 2), false);
   });
 
   // Extract just the paths for rendering
@@ -130,7 +161,33 @@ export class App {
     this.zoomLevel.set(1.0);
   }
 
+  // --- Procedural Helpers ---
+  private pseudoRandom(seed: number) {
+    const x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+  }
+
+  private getLeafColor(seed: number) {
+    const leafColors = ['#22C55E', '#16A34A', '#15803D', '#4ADE80', '#86EFAC'];
+    return leafColors[Math.floor(Math.abs(seed * 100)) % leafColors.length];
+  }
+
+  private getLeafPath(x: number, y: number, angle: number, scale: number) {
+    const rad = angle * Math.PI / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    const len = 12 * scale;
+    const width = 6 * scale;
+    const transform = (dx: number, dy: number) => `${x + dx * cos - dy * sin},${y + dx * sin + dy * cos}`;
+    const p0 = transform(0, 0);
+    const p1 = transform(len * 0.5, -width);
+    const p2 = transform(len, 0);
+    const p3 = transform(len * 0.5, width);
+    return `M${p0} Q${p1} ${p2} Q${p3} ${p0}`;
+  }
+
   private generateSeed() {
+    // Stage 1-3: More seeds appear
     return [
       { d: 'M100,150 Q100,150 100,150', type: 'seed', stroke: '#8B4513', fill: '#8B4513', width: 0 }, // Placeholder
       // Real seed: Ellipse center at 100,180
@@ -138,85 +195,152 @@ export class App {
     ];
   }
 
-  private generateSprout(lvl: number) {
-    const height = 20 + (lvl * 10);
-    const paths = [];
+  private generateSprout(stage: number) {
+    // Stage 1-5: Organic curved stem
+    const paths: any[] = [];
+    const slots: any[] = [];
+    const height = 30 + (stage * 15);
 
-    // Stem
+    // Seed for deterministic randomness
+    const seed = stage * 100;
+    const lean = (this.pseudoRandom(seed) - 0.5) * 20;
+
+    // Base Stem with curve
+    const x = 100, y = 200;
+    const endX = x + lean;
+    const endY = y - height;
+
+    // Control point for curve
+    const cpX = (x + endX) / 2 + (this.pseudoRandom(seed + 1) - 0.5) * 20;
+    const cpY = (y + endY) / 2;
+
     paths.push({
-      d: `M100,200 Q105,${200 - height / 2} 100,${200 - height}`,
-      stroke: '#4ADE80',
-      width: 4,
-      fill: 'none'
+      d: `M${x},${y} Q${cpX},${cpY} ${endX},${endY}`,
+      stroke: '#4ADE80', width: 4 + stage, fill: 'none'
     });
 
-    // Leaves
-    if (lvl >= 2) {
+    // Leaves at varied positions
+    for (let i = 1; i <= stage; i++) {
+      // Interpolate position along quadratic curve
+      const t = i / (stage + 1);
+      const inv = 1 - t;
+      const lx = (inv * inv) * x + 2 * inv * t * cpX + (t * t) * endX;
+      const ly = (inv * inv) * y + 2 * inv * t * cpY + (t * t) * endY;
+
+      // Leaf Angle
+      const angle = -90 + (this.pseudoRandom(i) * 60 - 30);
+      const side = i % 2 === 0 ? 1 : -1;
+      const leafAngle = angle + (side * 45);
+
+      // Use helper for leaf path
+      const scale = 0.8 + (i * 0.1);
       paths.push({
-        d: `M100,${200 - height} Q80,${200 - height - 10} 70,${200 - height + 5} Q90,${200 - height} 100,${200 - height}`,
-        fill: '#4ADE80',
-        stroke: 'none'
-      });
-    }
-    if (lvl >= 3) {
-      paths.push({
-        d: `M100,${200 - height} Q120,${200 - height - 10} 130,${200 - height + 5} Q110,${200 - height} 100,${200 - height}`,
-        fill: '#4ADE80',
-        stroke: 'none'
+        d: this.getLeafPath(lx, ly, leafAngle, scale),
+        fill: '#4ADE80', stroke: 'none'
       });
     }
 
-    return paths;
+    // Top Tip slot
+    slots.push({ id: 'sprout-tip', cx: endX, cy: endY });
+
+    return { paths, slots };
+  }
+
+  private generateSapling(stage: number) {
+    // Organic Sapling: Young tree with asymmetric growth
+    const paths: any[] = [];
+    const slots: any[] = [];
+
+    const seed = stage * 200;
+    const height = 100 + (stage * 10);
+    const trunkColor = stage > 4 ? '#8B4513' : '#65A30D';
+    const width = 10 + Math.floor(stage / 2);
+
+    const x = 100, y = 200;
+    const endX = x;
+    const endY = y - height;
+
+    // Trunk
+    const cpX = x + (this.pseudoRandom(seed) - 0.5) * 30;
+    paths.push({
+      d: `M${x},${y} Q${cpX},${(y + endY) / 2} ${endX},${endY}`,
+      stroke: trunkColor, width: width, fill: 'none'
+    });
+
+    // Asymmetric Branches
+    const branchCount = Math.floor(stage / 2) + 2;
+    for (let i = 0; i < branchCount; i++) {
+      const branchH = 0.3 + (this.pseudoRandom(seed + i) * 0.6); // 30% to 90% up the trunk
+
+      // Calculate approx position on trunk curve (quadratic)
+      const t = branchH;
+      const inv = 1 - t;
+      const bx = (inv * inv) * x + 2 * inv * t * cpX + (t * t) * endX;
+      const by = (inv * inv) * y + 2 * inv * t * (y + endY) / 2 + (t * t) * endY;
+
+      const side = this.pseudoRandom(seed + i + 1) > 0.5 ? 1 : -1;
+      const angle = -90 + (side * (30 + this.pseudoRandom(i) * 30));
+      const len = 30 + (stage * 5) * (1 - t); // Lower branches longer
+
+      const tipX = bx + Math.cos(angle * Math.PI / 180) * len;
+      const tipY = by + Math.sin(angle * Math.PI / 180) * len;
+
+      paths.push({
+        d: `M${bx},${by} Q${bx},${by - 10} ${tipX},${tipY}`,
+        stroke: trunkColor, width: width * 0.6, fill: 'none'
+      });
+
+      // Detailed Leaves at branch tip
+      // Cluster of 3 leaves
+      const leafScale = 0.8 + (stage * 0.05);
+      paths.push({
+        d: this.getLeafPath(tipX, tipY, angle, leafScale),
+        fill: '#4ADE80', stroke: 'none'
+      });
+      paths.push({
+        d: this.getLeafPath(tipX, tipY, angle - 45, leafScale * 0.8),
+        fill: '#22C55E', stroke: 'none'
+      });
+      paths.push({
+        d: this.getLeafPath(tipX, tipY, angle + 45, leafScale * 0.8),
+        fill: '#22C55E', stroke: 'none'
+      });
+
+      if (stage > 4) {
+        slots.push({ id: `sapling-b-${i}`, cx: tipX, cy: tipY });
+      }
+    }
+
+    // Top tip leaves
+    paths.push({ d: this.getLeafPath(endX, endY, -90, 1.2), fill: '#4ADE80', stroke: 'none' });
+    paths.push({ d: this.getLeafPath(endX, endY, -135, 1.0), fill: '#22C55E', stroke: 'none' });
+    paths.push({ d: this.getLeafPath(endX, endY, -45, 1.0), fill: '#22C55E', stroke: 'none' });
+
+    slots.push({ id: `sapling-top`, cx: endX, cy: endY });
+
+    return { paths, slots };
   }
 
   private generateTree(lvl: number, isDead: boolean) {
     const paths: any[] = [];
-    const slots: any[] = []; // Potential spawn points for fruits
-    const maxDepth = Math.min(Math.floor(lvl / 2) + 2, 8); // Cap depth for performance
+    const slots: any[] = [];
+
+    // Smooth transition from Sapling (which has ~6 branches).
+    // Lv 17 should start low complexity. 
+    // Formula: (17 - 12) / 2 = 2.5 -> Floor 2. Depth 2 = 7 branches (1 + 2 + 4).
+    // As level grows, depth increases.
+    const maxDepth = Math.max(2, Math.min(Math.floor((lvl - 12) / 2), 7));
+
     const trunkColor = isDead ? '#4B5563' : '#8B4513';
 
-    // Varied green shades for leaves
-    const leafColors = ['#22C55E', '#16A34A', '#15803D', '#4ADE80', '#86EFAC'];
-    const getLeafColor = (seed: number) => leafColors[Math.floor(Math.abs(seed * 100)) % leafColors.length];
-
-    // Seed random generator to keep tree stable between renders 
-    const pseudoRandom = (seed: number) => {
-      const x = Math.sin(seed) * 10000;
-      return x - Math.floor(x);
-    };
-
-    // Helper to generate a leaf path
-    const getLeafPath = (x: number, y: number, angle: number, scale: number) => {
-      // Leaf shape: simple quadratic bezier curves
-      // Rotated by angle
-      const rad = angle * Math.PI / 180;
-      const cos = Math.cos(rad);
-      const sin = Math.sin(rad);
-
-      // Relative points for a leaf shape (pointing right)
-      // 0,0 -> 10, -5 -> 20, 0 -> 10, 5 -> 0,0
-      const len = 12 * scale;
-      const width = 6 * scale;
-
-      const transform = (dx: number, dy: number) => {
-        return `${x + dx * cos - dy * sin},${y + dx * sin + dy * cos}`;
-      };
-
-      const p0 = transform(0, 0);
-      const p1 = transform(len * 0.5, -width);
-      const p2 = transform(len, 0);
-      const p3 = transform(len * 0.5, width);
-
-      return `M${p0} Q${p1} ${p2} Q${p3} ${p0}`;
-    };
-
+    // Recursive Branch Function
     const drawBranch = (x: number, y: number, angle: number, length: number, depth: number, width: number, pathId: string) => {
       const endX = x + Math.cos(angle * Math.PI / 180) * length;
       const endY = y + Math.sin(angle * Math.PI / 180) * length;
 
       // Control point for subtle curve
       const curveStrength = length * 0.2;
-      const curveAngle = angle + (pseudoRandom(x * y) > 0.5 ? 90 : -90);
+      const curveAngle = angle + (this.pseudoRandom(x * y) > 0.5 ? 90 : -90);
       const cpX = (x + endX) / 2 + Math.cos(curveAngle * Math.PI / 180) * curveStrength;
       const cpY = (y + endY) / 2 + Math.sin(curveAngle * Math.PI / 180) * curveStrength;
 
@@ -229,9 +353,9 @@ export class App {
 
       // Add Twigs
       if (width > 2 && !isDead) {
-        const hasTwig = pseudoRandom(x + y + depth) > 0.4;
+        const hasTwig = this.pseudoRandom(x + y + depth) > 0.4;
         if (hasTwig) {
-          const twigDir = (pseudoRandom(x) > 0.5 ? 1 : -1);
+          const twigDir = (this.pseudoRandom(x) > 0.5 ? 1 : -1);
           const twigAngle = angle + (45 * twigDir);
           const twigLen = length * 0.25;
 
@@ -251,8 +375,8 @@ export class App {
 
           // Detailed Leaf at twig end
           paths.push({
-            d: getLeafPath(teX, teY, twigAngle, 0.6),
-            fill: getLeafColor(teX + teY),
+            d: this.getLeafPath(teX, teY, twigAngle, 0.6),
+            fill: this.getLeafColor(teX + teY),
             stroke: 'none'
           });
 
@@ -265,36 +389,36 @@ export class App {
 
       if (depth > 0) {
         // Two branches with varied angles
-        const spread = 25 + (pseudoRandom(depth) * 10);
+        const spread = 25 + (this.pseudoRandom(depth) * 10);
         drawBranch(endX, endY, angle - spread, length * 0.85, depth - 1, width * 0.7, pathId + 'L');
         drawBranch(endX, endY, angle + spread, length * 0.85, depth - 1, width * 0.7, pathId + 'R');
       } else if (!isDead) {
         // Tips: Lush Leaf Cluster
-        const baseLeafColor = getLeafColor(endX);
+        const baseLeafColor = this.getLeafColor(endX);
 
         // Main leaf at tip
         paths.push({
-          d: getLeafPath(endX, endY, angle, 1.0),
+          d: this.getLeafPath(endX, endY, angle, 1.0),
           fill: baseLeafColor,
           stroke: 'none'
         });
 
         // Side leaves for specific lush look
-        const r1 = pseudoRandom(endX);
-        const r2 = pseudoRandom(endY);
+        const r1 = this.pseudoRandom(endX);
+        const r2 = this.pseudoRandom(endY);
 
         // Add 1-2 extra leaves based on level
         if (lvl > 2) {
           paths.push({
-            d: getLeafPath(endX, endY, angle - 45, 0.8),
-            fill: getLeafColor(endX + 1),
+            d: this.getLeafPath(endX, endY, angle - 45, 0.8),
+            fill: this.getLeafColor(endX + 1),
             stroke: 'none'
           });
         }
         if (lvl > 5 && r1 > 0.3) {
           paths.push({
-            d: getLeafPath(endX, endY, angle + 45, 0.8),
-            fill: getLeafColor(endX + 2),
+            d: this.getLeafPath(endX, endY, angle + 45, 0.8),
+            fill: this.getLeafColor(endX + 2),
             stroke: 'none'
           });
         }
@@ -326,25 +450,10 @@ export class App {
   }
 
   constructor() {
-    // Decrease lifespan over time
+    // Game Loop (Every 1s)
     setInterval(() => {
-      if (this.isDead()) return;
-
-      this.lifespan.update(t => {
-        const newTime = Math.max(t - 1, 0);
-        if (newTime === 0) {
-          this.isDead.set(true);
-          this.activeFruits.set(new Set()); // Clear fruits on death
-        }
-        return newTime;
-      });
-
-      // Auto-Fertilizer Effect (Passive EXP)
-      if (this.fertilizerLevel() > 0) {
-        const xpGain = this.fertilizerLevel() * 1000 / 60; // 50exp/min -> ~0.83 exp/sec per level
-        this.gainExperience(Math.ceil(xpGain)); // Ceil to ensure at least 1
-      }
-
+      this.now.set(Date.now());
+      // No death logic anymore
     }, 1000);
   }
 
@@ -380,28 +489,36 @@ export class App {
     this.gold.update(g => g + 1);
   }
 
-  buyAutoFertilizer() {
-    if (this.gold() >= 5) {
-      this.gold.update(g => g - 5);
-      this.fertilizerLevel.update(l => l + 1);
+  // Shop: Instant Fertilizer
+  buyInstantFertilizer() {
+    if (this.gold() >= 3) {
+      this.gold.update(g => g - 3);
+      this.gainExperience(500);
+
+      // 15% Chance for bonus Golden Flower
+      if (Math.random() < 0.15) {
+        this.spawnFruit(); // Reuse fruit spawn for now as "Golden Reward"
+      }
     }
   }
 
   // Actions
   waterPlant() {
-    if (this.isDead()) return;
-    this.gainExperience(20);
-  }
-
-  fertilize() {
-    if (this.isDead()) return;
     this.gainExperience(1000);
   }
 
+  // Old fertilize removed, standard actions below
+
   tillSoil() {
-    if (this.isDead()) return;
+    const now = Date.now();
+    if (now - this.lastTillTime() < 60000) return; // 60s cooldown
+
+    this.lastTillTime.set(now);
     this.gainExperience(80);
   }
+
+  // Animation State
+  readonly isGrowing = signal(false);
 
   gainExperience(amount: number) {
     this.experience.update(xp => {
@@ -413,6 +530,10 @@ export class App {
         newXp -= required;
         this.level.update(l => l + 1);
         required = this.xpRequired();
+
+        // Trigger Growth Animation
+        this.isGrowing.set(true);
+        setTimeout(() => this.isGrowing.set(false), 500);
 
         // Dynamic Spawn Chance based on Level
         // Base chance 60%, +4% per level.
