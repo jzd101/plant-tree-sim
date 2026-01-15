@@ -573,7 +573,7 @@ export class App {
 
   // Actions
   waterPlant() {
-    this.gainExperience(800);
+    this.gainExperience(80);
   }
 
   // Old fertilize removed, standard actions below
