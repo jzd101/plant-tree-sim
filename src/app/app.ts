@@ -35,6 +35,8 @@ export class App {
   readonly gold = signal(0);
   readonly fertilizerLevel = signal(0);
   readonly activeFruits = signal<Set<string>>(new Set());
+  readonly activeBirds = signal<Set<string>>(new Set()); // Birds perched on branches
+
 
   // View State (Pan & Zoom)
   readonly viewPos = signal({ x: 0, y: 0 }); // Offset from center
@@ -69,20 +71,7 @@ export class App {
 
     // Seed Stage (Lv 1-3)
     if (lvl <= 3) {
-      const seedCount = lvl; // 1, 2, or 3 seeds
-      for (let i = 0; i < seedCount; i++) {
-        // Spread seeds around center
-        const offset = (i - (seedCount - 1) / 2) * 25;
-        paths.push({
-          isCircle: true, cx: 100 + offset, cy: 180, rx: 10, ry: 12, fill: '#8B4513'
-        });
-        // Sparkle/Detail on seed
-        paths.push({
-          d: `M${100 + offset - 5},175 Q${100 + offset},170 ${100 + offset + 5},175`,
-          stroke: '#D2B48C', width: 2, fill: 'none'
-        });
-      }
-      return { paths, slots };
+      return this.generateSeed();
     }
 
     // Sprout Stage (Lv 4-8) -> 5 stages
@@ -110,6 +99,13 @@ export class App {
   readonly renderedFruits = computed(() => {
     const slots = this.treeData().slots;
     const active = this.activeFruits();
+    return slots.filter(slot => active.has(slot.id));
+  });
+
+  // Filter active birds for rendering
+  readonly renderedBirds = computed(() => {
+    const active = this.activeBirds();
+    const slots = this.treeData().slots;
     return slots.filter(slot => active.has(slot.id));
   });
 
@@ -187,12 +183,24 @@ export class App {
   }
 
   private generateSeed() {
+    const paths = [];
+
+    // Pot (Static Base)
+    paths.push({
+      d: 'M80,200 L120,200 L110,240 L90,240 Z',
+      fill: '#A0522D', stroke: '#8B4513', width: 2, type: 'pot'
+    });
+    paths.push({
+      d: 'M75,200 L125,200',
+      stroke: '#8B4513', width: 4, type: 'pot' // Rim
+    });
+
     // Stage 1-3: More seeds appear
-    return [
-      { d: 'M100,150 Q100,150 100,150', type: 'seed', stroke: '#8B4513', fill: '#8B4513', width: 0 }, // Placeholder
-      // Real seed: Ellipse center at 100,180
-      { isCircle: true, cx: 100, cy: 180, rx: 10, ry: 12, fill: '#8B4513' }
+    const seedPaths = [
+      // Real seed: Ellipse sitting inside pot
+      { isCircle: true, cx: 100, cy: 215, rx: 6, ry: 8, fill: '#8B4513' }
     ];
+    return { paths: [...paths, ...seedPaths], slots: [] };
   }
 
   private generateSprout(stage: number) {
@@ -205,8 +213,8 @@ export class App {
     const seed = stage * 100;
     const lean = (this.pseudoRandom(seed) - 0.5) * 20;
 
-    // Base Stem with curve
-    const x = 100, y = 200;
+    // Base Stem with curve - starts inside pot
+    const x = 100, y = 210;
     const endX = x + lean;
     const endY = y - height;
 
@@ -243,6 +251,16 @@ export class App {
     // Top Tip slot
     slots.push({ id: 'sprout-tip', cx: endX, cy: endY });
 
+    // Add Pot
+    paths.unshift({
+      d: 'M75,200 L125,200',
+      stroke: '#8B4513', width: 4, type: 'pot' // Rim
+    });
+    paths.unshift({
+      d: 'M80,200 L120,200 L110,240 L90,240 Z',
+      fill: '#A0522D', stroke: '#8B4513', width: 2, type: 'pot'
+    });
+
     return { paths, slots };
   }
 
@@ -256,7 +274,7 @@ export class App {
     const trunkColor = stage > 4 ? '#8B4513' : '#65A30D';
     const width = 10 + Math.floor(stage / 2);
 
-    const x = 100, y = 200;
+    const x = 100, y = 210; // Start inside pot
     const endX = x;
     const endY = y - height;
 
@@ -316,7 +334,18 @@ export class App {
     paths.push({ d: this.getLeafPath(endX, endY, -135, 1.0), fill: '#22C55E', stroke: 'none' });
     paths.push({ d: this.getLeafPath(endX, endY, -45, 1.0), fill: '#22C55E', stroke: 'none' });
 
+    // Top tip
     slots.push({ id: `sapling-top`, cx: endX, cy: endY });
+
+    // Add Pot
+    paths.unshift({
+      d: 'M75,200 L125,200',
+      stroke: '#8B4513', width: 4, type: 'pot'
+    });
+    paths.unshift({
+      d: 'M80,200 L120,200 L110,240 L90,240 Z',
+      fill: '#A0522D', stroke: '#8B4513', width: 2, type: 'pot'
+    });
 
     return { paths, slots };
   }
@@ -446,6 +475,18 @@ export class App {
     };
 
     drawBranch(100, 200, -90, 40 + (lvl * 2), maxDepth, 12, 'root');
+
+    // Roots (Static) replacing Pot
+    paths.unshift({
+      d: 'M100,200 Q90,220 80,230', stroke: '#5D4037', width: 8, fill: 'none', type: 'root'
+    });
+    paths.unshift({
+      d: 'M100,200 Q110,220 120,235', stroke: '#5D4037', width: 7, fill: 'none', type: 'root'
+    });
+    paths.unshift({
+      d: 'M100,200 Q100,225 95,245', stroke: '#5D4037', width: 6, fill: 'none', type: 'root'
+    });
+
     return { paths, slots };
   }
 
@@ -489,6 +530,34 @@ export class App {
     this.gold.update(g => g + 1);
   }
 
+  // Bird Shop
+  buyBird() {
+    if (this.gold() >= 2) {
+      this.gold.update(g => g - 2);
+      this.spawnBird();
+    }
+  }
+
+  spawnBird() {
+    const slots = this.treeData().slots;
+    if (slots.length === 0) return;
+
+    const currentBirds = this.activeBirds();
+    const currentFruits = this.activeFruits();
+
+    // Find slots not occupied by birds or fruits
+    const freeSlots = slots.filter(s => !currentBirds.has(s.id) && !currentFruits.has(s.id));
+    if (freeSlots.length === 0) return;
+
+    const randomSlot = freeSlots[Math.floor(Math.random() * freeSlots.length)];
+
+    this.activeBirds.update(set => {
+      const newSet = new Set(set);
+      newSet.add(randomSlot.id);
+      return newSet;
+    });
+  }
+
   // Shop: Instant Fertilizer
   buyInstantFertilizer() {
     if (this.gold() >= 3) {
@@ -504,7 +573,7 @@ export class App {
 
   // Actions
   waterPlant() {
-    this.gainExperience(1000);
+    this.gainExperience(800);
   }
 
   // Old fertilize removed, standard actions below
@@ -528,8 +597,27 @@ export class App {
       // Level up loop
       while (newXp >= required) {
         newXp -= required;
+
+        // Capture bird count and old slots BEFORE level up
+        const birdCount = this.activeBirds().size;
+        const oldSlots = this.treeData().slots.map(s => s.id);
+
         this.level.update(l => l + 1);
         required = this.xpRequired();
+
+        // Migrate birds to new tree structure (Tree stage only)
+        if (this.level() >= 17 && birdCount > 0) {
+          const newSlots = this.treeData().slots;
+          const currentFruits = this.activeFruits();
+
+          // Find free slots (not occupied by fruits)
+          const freeSlots = newSlots.filter(s => !currentFruits.has(s.id));
+
+          // Migrate birds: take first N free slots where N = number of birds
+          const newBirdSlots = freeSlots.slice(0, Math.min(birdCount, freeSlots.length));
+
+          this.activeBirds.set(new Set(newBirdSlots.map(s => s.id)));
+        }
 
         // Trigger Growth Animation
         this.isGrowing.set(true);

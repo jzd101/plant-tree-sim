@@ -13,19 +13,43 @@
       <!-- Actually, we want SVG to capture clicks on fruits, but container to capture drag anywhere else. -->
       <!-- Put pointer-events-auto on fruits/paths -->
 
-      <g transform="translate(30, 100) scale(1.5)"
-        class="pointer-events-auto animate-sway transition-transform duration-500 origin-bottom"
-        [class.animate-grow-pop]="isGrowing()">
+      <!-- Wind Visuals (Background lines) -->
+      <g class="pointer-events-none opacity-40">
+        <path d="M0,80 L60,80" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round" class="animate-wind"
+          style="animation-duration: 4s; animation-delay: 0s" />
+        <path d="M-50,150 L20,150" stroke="#CBD5E1" stroke-width="3" stroke-linecap="round" class="animate-wind"
+          style="animation-duration: 3s; animation-delay: 1.5s" />
+        <path d="M-20,220 L40,220" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round" class="animate-wind"
+          style="animation-duration: 5s; animation-delay: 0.5s" />
+        <path d="M-60,300 L10,300" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round" class="animate-wind"
+          style="animation-duration: 6s; animation-delay: 2s" />
+        <path d="M0,350 L50,350" stroke="#CBD5E1" stroke-width="3" stroke-linecap="round" class="animate-wind"
+          style="animation-duration: 4.5s; animation-delay: 3s" />
+      </g>
+
+      <!-- Static Group (Pot & Roots) - DISABLED FOR DEBUG
+      <g transform="translate(30, 100) scale(1.5)" class="pointer-events-auto origin-bottom">
         @for (path of visualPaths(); track $index) {
+        @if (path.type === 'pot' || path.type === 'root') {
+        <path [attr.d]="path.d" [attr.stroke]="path.stroke" [attr.stroke-width]="path.width" [attr.fill]="path.fill"
+          stroke-linecap="round" />
+        }
+        }
+      </g>
+      -->
+
+      <!-- Dynamic Group (Tree & Leaves) - NO ANIMATIONS FOR DEBUG -->
+      <g transform="translate(30, 100) scale(1.5)"
+        class="pointer-events-auto transition-transform duration-500 origin-bottom">
+        @for (path of visualPaths(); track $index) {
+        @if (path.type !== 'pot' && path.type !== 'root') {
         @if (path.isCircle) {
-        <!-- Scale up coordinates for larger viewbox if needed, or rely on SVG scaling -->
-        <!-- Since logic uses 100,200 as base, we transform to center it in 400,500 -->
-        <!-- Translate(100, 250) scale(2) to make it bigger? Let's just wrap group -->
         <ellipse [attr.cx]="path.cx" [attr.cy]="path.cy" [attr.rx]="path.rx || path.r" [attr.ry]="path.ry || path.r"
           [attr.fill]="path.fill" class="transition-all duration-500" />
         } @else {
         <path [attr.d]="path.d" [attr.stroke]="path.stroke" [attr.stroke-width]="path.width" [attr.fill]="path.fill"
           stroke-linecap="round" class="transition-all duration-500" />
+        }
         }
         }
 
@@ -39,6 +63,20 @@
           <circle [attr.cx]="fruit.cx" [attr.cy]="fruit.cy" r="5" fill="#F59E0B" stroke="#FBBF24" stroke-width="1" />
           <!-- Shine -->
           <circle [attr.cx]="fruit.cx - 1" [attr.cy]="fruit.cy - 1" r="2" fill="white" opacity="0.6" />
+        </g>
+        }
+
+        <!-- Render Birds (Non-clickable decorations) -->
+        @for (bird of renderedBirds(); track $index) {
+        <g class="animate-float-in" style="transform-box: fill-box">
+          <!-- Bird Body (Blue) -->
+          <circle [attr.cx]="bird.cx" [attr.cy]="bird.cy" r="4" fill="#3B82F6" />
+          <!-- Bird Head (Light Blue) -->
+          <circle [attr.cx]="bird.cx + 2" [attr.cy]="bird.cy - 3" r="3" fill="#60A5FA" />
+          <!-- Beak (Orange) -->
+          <path [attr.d]="'M' + (bird.cx + 5) + ',' + (bird.cy - 3) + ' l3,-1 l-3,2 z'" fill="#FFA500" />
+          <!-- Eye (Black) -->
+          <circle [attr.cx]="bird.cx + 3" [attr.cy]="bird.cy - 4" r="0.8" fill="black" />
         </g>
         }
       </g>
@@ -120,13 +158,28 @@
           </div>
         </button>
 
+        <!-- Shop Item: Buy Bird (Tree Stage Only) -->
+        <button (click)="buyBird()" [disabled]="gold() < 2 || level() < 17"
+          class="w-full group flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-sky-50 to-sky-100 border border-sky-200 hover:from-sky-100 hover:to-sky-200 active:scale-95 transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:grayscale">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">🐦</span>
+            <div class="flex flex-col items-start">
+              <span class="font-bold text-sky-700 text-sm">Buy Bird</span>
+              <span class="text-[0.6rem] text-sky-500">Perches on branches</span>
+            </div>
+          </div>
+          <div class="flex flex-col items-end">
+            <span class="font-bold text-sky-600 text-sm">2 💰</span>
+          </div>
+        </button>
+
         <button (click)="waterPlant()"
           class="w-full group flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 hover:from-blue-100 hover:to-blue-200 active:scale-95 transition-all shadow-sm hover:shadow-md">
           <div class="flex items-center gap-3">
             <span class="text-2xl">💧</span>
             <span class="font-bold text-blue-700">Water</span>
           </div>
-          <span class="text-xs font-bold text-blue-500 bg-white/50 px-2 py-1 rounded">+20 XP</span>
+          <span class="text-xs font-bold text-blue-500 bg-white/50 px-2 py-1 rounded">+50 XP</span>
         </button>
 
         <!-- Till Soil with Cooldown -->
