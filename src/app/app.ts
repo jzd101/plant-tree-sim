@@ -1,4 +1,4 @@
-import { Component, signal, computed, effect } from '@angular/core';
+import { Component, signal, computed, effect, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Biome, TreeEntity, ActiveTreeState } from './models';
 import { BiomeGenerator } from './logic/biome-generator';
@@ -9,7 +9,8 @@ import { CollisionSystem } from './logic/collision-system';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './app.html',
-  styleUrl: './app.css'
+  styleUrl: './app.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class App {
   // Game State Signals
@@ -43,28 +44,32 @@ export class App {
   readonly activeFruits = signal<Set<string>>(new Set());
   readonly activeBirds = signal<Set<string>>(new Set());
 
-  // View State
-  readonly viewPos = signal({ x: 0, y: 0 });
-  readonly zoomLevel = signal(1.0);
-  private isDragging = false;
-  private dragStart = { x: 0, y: 0 };
-
-  readonly viewBox = computed(() => {
-    const w = 400 / this.zoomLevel();
-    const h = 500 / this.zoomLevel();
-    const x = -this.viewPos().x - (w / 2) + 200; // Center on screen
-    const y = -this.viewPos().y - (h / 2) + 250;
-    return `${x} ${y} ${w} ${h}`;
-  });
+  // View State (Static now)
+  readonly viewBox = signal("0 0 400 500");
 
   // --- Tree Generation Logic ---
 
+  // OPTIMIZATION: Memoize visual parameters to prevent re-generation on XP gain
+  readonly treeVisualParams = computed(() => {
+    const s = this.activeTree();
+    const b = this.currentBiome();
+    return { level: s.level, x: s.x, y: s.y, scale: s.scale, biomeId: b.id };
+  }, {
+    equal: (a, b) =>
+      a.level === b.level &&
+      a.x === b.x &&
+      a.y === b.y &&
+      a.scale === b.scale &&
+      a.biomeId === b.biomeId
+  });
+
   readonly treeData = computed(() => {
-    const state = this.activeTree();
-    const biome = this.currentBiome();
+    const params = this.treeVisualParams();
+    const biome = this.currentBiome(); // access here for full object if needed, or re-get
+    // Note: Biome object reference stable if ID stable
 
     // Inject Biome colors into generation
-    return this.generateTreeVisuals(state.level, biome, state.x, state.y, state.scale);
+    return this.generateTreeVisuals(params.level, biome, params.x, params.y, params.scale);
   });
 
   // Pre-calculated stats
@@ -502,22 +507,5 @@ export class App {
   }
 
   // --- Interaction ---
-  onMouseDown(e: MouseEvent) { this.isDragging = true; this.dragStart = { x: e.clientX, y: e.clientY }; }
-  onMouseUp() { this.isDragging = false; }
-  onMouseMove(e: MouseEvent) {
-    if (!this.isDragging) return;
-    const dx = e.clientX - this.dragStart.x;
-    const dy = e.clientY - this.dragStart.y;
-    this.dragStart = { x: e.clientX, y: e.clientY };
-    this.viewPos.update(p => ({ x: p.x + dx / this.zoomLevel(), y: p.y + dy / this.zoomLevel() }));
-  }
-  onWheel(e: WheelEvent) {
-    e.preventDefault();
-    const d = -e.deltaY * 0.001;
-    this.zoomLevel.update(z => Math.max(0.2, Math.min(4, z + d)));
-  }
-  resetView() {
-    this.viewPos.set({ x: 0, y: 0 });
-    this.zoomLevel.set(1.0);
-  }
+  // (Removed: View is static)
 }
