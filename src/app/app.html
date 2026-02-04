@@ -1,204 +1,192 @@
-<div class="h-screen bg-gradient-to-br from-green-100 to-blue-100 flex overflow-hidden font-sans">
+<div
+  [class]="'h-screen flex overflow-hidden font-sans transition-colors duration-1000 ' + currentBiome().colors.background">
 
-  <!-- Left Side: Tree (80%) -->
-  <div
-    class="w-4/5 h-full relative flex items-center justify-center p-8 bg-white/30 backdrop-blur-sm cursor-grab active:cursor-grabbing overflow-hidden"
-    (mousedown)="onMouseDown($event)" (mousemove)="onMouseMove($event)" (mouseup)="onMouseUp()"
-    (mouseleave)="onMouseUp()" (wheel)="onWheel($event)">
+  <!-- Game Area (100% on mobile, 80% on desktop) -->
+  <div class="flex-1 h-full relative overflow-hidden">
 
-    <!-- Procedural SVG Plant -->
-    <!-- Adjusted viewBox to handle larger trees and centered better -->
+    <!-- SVG Canvas -->
     <svg [attr.viewBox]="viewBox()" class="w-full h-full drop-shadow-2xl overflow-visible pointer-events-none">
-      <!-- Pointer events none on SVG so drag passes through to container, BUT fruits need click? -->
-      <!-- Actually, we want SVG to capture clicks on fruits, but container to capture drag anywhere else. -->
-      <!-- Put pointer-events-auto on fruits/paths -->
 
-      <!-- Wind Visuals (Background lines) -->
-      <g class="pointer-events-none opacity-40">
-        <path d="M0,80 L60,80" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round" class="animate-wind"
-          style="animation-duration: 4s; animation-delay: 0s" />
-        <path d="M-50,150 L20,150" stroke="#CBD5E1" stroke-width="3" stroke-linecap="round" class="animate-wind"
-          style="animation-duration: 3s; animation-delay: 1.5s" />
-        <path d="M-20,220 L40,220" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round" class="animate-wind"
-          style="animation-duration: 5s; animation-delay: 0.5s" />
-        <path d="M-60,300 L10,300" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round" class="animate-wind"
-          style="animation-duration: 6s; animation-delay: 2s" />
-        <path d="M0,350 L50,350" stroke="#CBD5E1" stroke-width="3" stroke-linecap="round" class="animate-wind"
-          style="animation-duration: 4.5s; animation-delay: 3s" />
-      </g>
-
-      <!-- Static Group (Pot & Roots) - DISABLED FOR DEBUG
-      <g transform="translate(30, 100) scale(1.5)" class="pointer-events-auto origin-bottom">
-        @for (path of visualPaths(); track $index) {
-        @if (path.type === 'pot' || path.type === 'root') {
-        <path [attr.d]="path.d" [attr.stroke]="path.stroke" [attr.stroke-width]="path.width" [attr.fill]="path.fill"
-          stroke-linecap="round" />
-        }
-        }
-      </g>
-      -->
-
-      <!-- Dynamic Group (Tree & Leaves) - NO ANIMATIONS FOR DEBUG -->
-      <g transform="translate(30, 100) scale(1.5)"
-        class="pointer-events-auto transition-transform duration-500 origin-bottom">
-        @for (path of visualPaths(); track $index) {
-        @if (path.type !== 'pot' && path.type !== 'root') {
-        @if (path.isCircle) {
-        <ellipse [attr.cx]="path.cx" [attr.cy]="path.cy" [attr.rx]="path.rx || path.r" [attr.ry]="path.ry || path.r"
-          [attr.fill]="path.fill" class="transition-all duration-500" />
-        } @else {
-        <path [attr.d]="path.d" [attr.stroke]="path.stroke" [attr.stroke-width]="path.width" [attr.fill]="path.fill"
-          stroke-linecap="round" class="transition-all duration-500" />
-        }
-        }
-        }
-
-        <!-- Render Golden Fruits (Clickable) -->
-        @for (fruit of renderedFruits(); track $index) {
-        <g class="cursor-pointer hover:scale-125 transition-transform origin-center animate-float-in"
-          style="transform-box: fill-box" (click)="harvestFruit(fruit.id); $event.stopPropagation()">
-          <!-- Glow -->
-          <circle [attr.cx]="fruit.cx" [attr.cy]="fruit.cy" r="8" fill="#FCD34D" class="animate-pulse opacity-50" />
-          <!-- Fruit Body -->
-          <circle [attr.cx]="fruit.cx" [attr.cy]="fruit.cy" r="5" fill="#F59E0B" stroke="#FBBF24" stroke-width="1" />
-          <!-- Shine -->
-          <circle [attr.cx]="fruit.cx - 1" [attr.cy]="fruit.cy - 1" r="2" fill="white" opacity="0.6" />
+      <!-- 1. Baked Legacy Trees (Background) -->
+      <g class="opacity-80 grayscale-[30%]">
+        @for (tree of legacyTrees(); track tree.id) {
+        <g style="transform-origin: center bottom">
+          @for (path of tree.paths; track $index) {
+          @if (path.d) {
+          <path [attr.d]="path.d" [attr.stroke]="path.stroke" [attr.stroke-width]="path.width" [attr.fill]="path.fill"
+            stroke-linecap="round" />
+          } @else {
+          <ellipse [attr.cx]="path.cx" [attr.cy]="path.cy" [attr.rx]="path.r || 6" [attr.ry]="path.r || 8"
+            [attr.fill]="path.fill" />
+          }
+          }
+          <!-- Score Label on tree -->
+          <text [attr.x]="tree.x" [attr.y]="tree.y - 100" font-size="12" fill="white" text-anchor="middle"
+            class="font-bold drop-shadow-md">+{{ tree.score }}</text>
         </g>
         }
+      </g>
 
-        <!-- Render Birds (Non-clickable decorations) -->
-        @for (bird of renderedBirds(); track $index) {
-        <g class="animate-float-in" style="transform-box: fill-box">
-          <!-- Bird Body (Blue) -->
-          <circle [attr.cx]="bird.cx" [attr.cy]="bird.cy" r="4" fill="#3B82F6" />
-          <!-- Bird Head (Light Blue) -->
-          <circle [attr.cx]="bird.cx + 2" [attr.cy]="bird.cy - 3" r="3" fill="#60A5FA" />
-          <!-- Beak (Orange) -->
-          <path [attr.d]="'M' + (bird.cx + 5) + ',' + (bird.cy - 3) + ' l3,-1 l-3,2 z'" fill="#FFA500" />
-          <!-- Eye (Black) -->
-          <circle [attr.cx]="bird.cx + 3" [attr.cy]="bird.cy - 4" r="0.8" fill="black" />
+      <!-- 2. Active Tree (Dynamic) -->
+      <g class="pointer-events-auto transition-transform duration-300" style="transform-origin: center bottom">
+        @for (path of treeData().paths; track $index) {
+        @if (path.d) {
+        <path [attr.d]="path.d" [attr.stroke]="path.stroke" [attr.stroke-width]="path.width" [attr.fill]="path.fill"
+          stroke-linecap="round" class="transition-all duration-500" />
+        } @else {
+        <ellipse [attr.cx]="path.cx" [attr.cy]="path.cy" [attr.rx]="path.r || 6" [attr.ry]="path.r || 8"
+          [attr.fill]="path.fill" class="transition-all duration-500" />
+        }
+        }
+
+        <!-- Fruits (Active Tree Only) -->
+        @for (fruit of renderedFruits(); track $index) {
+        <g class="cursor-pointer hover:scale-125 transition-transform origin-center animate-float-in"
+          (click)="harvestFruit(fruit.id); $event.stopPropagation()">
+          <circle [attr.cx]="fruit.cx" [attr.cy]="fruit.cy" r="8" fill="#FCD34D" class="animate-pulse opacity-50" />
+          <circle [attr.cx]="fruit.cx" [attr.cy]="fruit.cy" r="5" fill="#F59E0B" stroke="#FBBF24" stroke-width="1" />
         </g>
         }
       </g>
     </svg>
 
-    <!-- Current Stage Label (Floating) -->
+    <!-- WILDCARD EFFECT INDICATOR -->
+    @if (lastWildcardEffect()) {
+    <div class="absolute top-1/4 left-1/2 -translate-x-1/2 z-50 animate-bounce pointer-events-none">
+      <div [class]="'text-4xl font-black drop-shadow-md ' + lastWildcardEffect()?.color">
+        {{ lastWildcardEffect()?.text }}
+      </div>
+    </div>
+    }
+
+    <!-- CRITICAL HIT INDICATOR -->
+    @if (lastActionCritical()) {
+    <div class="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 animate-grow-pop pointer-events-none">
+      <div class="text-6xl font-black text-yellow-400 drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)] italic tracking-tighter"
+        style="-webkit-text-stroke: 2px #b45309;">
+        CRITICAL!
+      </div>
+      <div class="text-2xl font-bold text-white text-center mt-2 drop-shadow-md">Huge Growth Spurt!</div>
+    </div>
+    }
+
+    <!-- Overlay UI: Top Bar -->
     <div
-      class="absolute bottom-8 left-8 bg-white/80 backdrop-blur-md px-6 py-2 rounded-full shadow-lg text-gray-700 font-bold uppercase tracking-widest pointer-events-none select-none">
-      {{ stage() }}
-    </div>
-
-    <!-- Reset View Button -->
-    <button (click)="resetView()"
-      class="absolute bottom-8 right-8 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg hover:shadow-xl active:scale-95 transition-all text-gray-700 pointer-events-auto"
-      title="Reset View">
-      <span class="text-xl">🎯</span>
-    </button>
-  </div>
-
-  <!-- Right Side: Console (20%) -->
-  <div class="w-1/5 h-full bg-white/90 backdrop-blur-xl shadow-2xl border-l border-white/50 flex flex-col z-10">
-
-    <!-- Header Section -->
-    <div class="p-6 border-b border-gray-100">
-      <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-green-600 to-emerald-800 mb-4">
-        Plant Care
-      </h1>
-
-      <div class="space-y-3">
-        <div class="flex justify-between items-center bg-amber-50 p-2 rounded-lg border border-amber-100">
-          <span class="text-xs font-bold text-amber-800 uppercase">Level</span>
-          <span class="text-lg font-bold text-amber-700">{{ level() }}</span>
-        </div>
-
-        <!-- Gold Display -->
-        <div class="flex justify-between items-center bg-yellow-50 p-2 rounded-lg border border-yellow-100">
-          <span class="text-xs font-bold text-yellow-800 uppercase">Gold</span>
-          <span class="text-lg font-bold text-yellow-700">💰 {{ gold() }}</span>
-        </div>
+      class="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md px-6 py-2 rounded-full shadow-xl z-20 flex gap-6 items-center border border-white/50">
+      <div class="flex flex-col items-center">
+        <span class="text-xs font-black tracking-widest uppercase text-gray-400">Biome</span>
+        <span class="font-bold text-gray-800">{{ currentBiome().name }}</span>
+      </div>
+      <div class="h-8 w-px bg-gray-300"></div>
+      <div class="flex flex-col items-center">
+        <span class="text-xs font-black tracking-widest uppercase text-amber-500">Score</span>
+        <span class="font-bold text-2xl text-amber-600">{{ totalScore() | number }}</span>
       </div>
     </div>
 
-    <!-- Stats Section -->
-    <div class="p-6 flex-1 overflow-y-auto">
-      <div class="mb-2 flex justify-between text-sm">
-        <span class="font-medium text-gray-600">XP Progress</span>
-        <span class="font-bold text-blue-600">{{ experience() }} / {{ xpRequired() }}</span>
-      </div>
-      <div class="h-4 bg-gray-200 rounded-full overflow-hidden shadow-inner mb-8">
-        <div class="h-full bg-gradient-to-r from-blue-400 to-indigo-500 transition-all duration-300 ease-out"
-          [style.width.%]="(experience() / xpRequired()) * 100"></div>
-      </div>
+    <!-- Wildcard Items (Bottom Left) -->
+    <div class="absolute bottom-8 left-8 flex gap-4 pointer-events-auto items-end">
+      <!-- Mystery Potion (500) -->
+      @let potionCd = wildcardCooldowns().get('mystery_potion');
+      @let potionReady = !potionCd || potionCd < now(); <button (click)="useWildcard('mystery_potion')"
+        [disabled]="!potionReady || totalScore() < 500"
+        class="group relative flex flex-col items-center disabled:opacity-50 transition-transform active:scale-95">
+        <div
+          class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg flex items-center justify-center border-2 border-white/30 group-hover:brightness-110">
+          <span class="text-3xl">🧪</span>
+        </div>
+        <div class="bg-black/60 text-white text-xs font-bold px-2 py-1 rounded-full mt-[-10px] z-10">500</div>
+        @if (!potionReady) {
+        <div
+          class="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center text-white font-bold text-sm">
+          {{ ((potionCd || 0) - now()) / 1000 | number:'1.0-0' }}s
+        </div>
+        }
+        </button>
 
-      <!-- Auto-Fertilizer Stats -->
-      @if (fertilizerLevel() > 0) {
-      <div class="mb-4 bg-green-50 p-3 rounded-xl border border-green-100">
-        <div class="text-xs font-bold text-green-800 uppercase mb-1">Passives Active</div>
-        <div class="text-sm text-green-700">Auto-Fertilizer Lvl {{ fertilizerLevel() }}</div>
-        <div class="text-xs text-green-600">+{{ (fertilizerLevel() * 50).toLocaleString() }} XP / min</div>
+        <!-- Chaos Seed (1500) -->
+        @let chaosCd = wildcardCooldowns().get('chaos_seed');
+        @let chaosReady = !chaosCd || chaosCd < now(); <button (click)="useWildcard('chaos_seed')"
+          [disabled]="!chaosReady || totalScore() < 1500"
+          class="group relative flex flex-col items-center disabled:opacity-50 transition-transform active:scale-95">
+          <div
+            class="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-600 to-orange-600 shadow-lg flex items-center justify-center border-2 border-white/30 group-hover:brightness-110">
+            <span class="text-3xl animate-pulse">🔥</span>
+          </div>
+          <div class="bg-black/60 text-white text-xs font-bold px-2 py-1 rounded-full mt-[-10px] z-10">1500</div>
+          @if (!chaosReady) {
+          <div
+            class="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center text-white font-bold text-sm">
+            {{ ((chaosCd || 0) - now()) / 1000 | number:'1.0-0' }}s
+          </div>
+          }
+          </button>
+    </div>
+
+    <!-- Stats & Controls (Bottom Right) -->
+    <div class="absolute bottom-8 right-8 flex flex-col items-end gap-4 pointer-events-auto">
+      <!-- Growth Multiplier Status -->
+      @if (growthMultiplier() !== 1) {
+      <div class="bg-yellow-400 text-yellow-900 font-bold px-4 py-2 rounded-xl shadow-lg animate-pulse">
+        Growth Speed: {{ growthMultiplier() }}x
       </div>
       }
-    </div>
 
-    <!-- Actions Section (Bottom) -->
-    <div class="p-6 bg-gray-50 border-t border-gray-200">
-      <div class="space-y-3">
-        <!-- Shop Item: Instant Fertilizer -->
-        <button (click)="buyInstantFertilizer()" [disabled]="gold() < 3"
-          class="w-full group flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 hover:from-purple-100 hover:to-purple-200 active:scale-95 transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:grayscale">
-          <div class="flex items-center gap-3">
-            <span class="text-2xl">🧪</span>
-            <div class="flex flex-col items-start">
-              <span class="font-bold text-purple-700 text-sm">Instant Fertilizer</span>
-              <span class="text-[0.6rem] text-purple-500">+500 XP & 15% 🌸 Golden Flower</span>
-            </div>
-          </div>
-          <div class="flex flex-col items-end">
-            <span class="font-bold text-yellow-600 text-sm">3 💰</span>
-          </div>
-        </button>
+      <!-- Active Tree Status -->
+      <div class="bg-white/90 backdrop-blur-xl p-4 rounded-2xl shadow-lg border border-white/50 w-64">
+        <div class="flex justify-between items-center mb-2">
+          <span class="font-bold text-gray-700">Level {{ activeTree().level }}</span>
+          <span class="text-xs text-gray-500">{{ stageLabel() }}</span>
+        </div>
+        <div class="h-3 bg-gray-200 rounded-full overflow-hidden">
+          <div class="h-full bg-green-500 transition-all duration-300"
+            [style.width.%]="(activeTree().experience / xpRequired()) * 100"></div>
+        </div>
+      </div>
 
-        <!-- Shop Item: Buy Bird (Tree Stage Only) -->
-        <button (click)="buyBird()" [disabled]="gold() < 2 || level() < 17"
-          class="w-full group flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-sky-50 to-sky-100 border border-sky-200 hover:from-sky-100 hover:to-sky-200 active:scale-95 transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:grayscale">
-          <div class="flex items-center gap-3">
-            <span class="text-2xl">🐦</span>
-            <div class="flex flex-col items-start">
-              <span class="font-bold text-sky-700 text-sm">Buy Bird</span>
-              <span class="text-[0.6rem] text-sky-500">Perches on branches</span>
-            </div>
-          </div>
-          <div class="flex flex-col items-end">
-            <span class="font-bold text-sky-600 text-sm">2 💰</span>
-          </div>
-        </button>
-
+      <!-- Actions -->
+      <div class="flex gap-2">
         <button (click)="waterPlant()"
-          class="w-full group flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 hover:from-blue-100 hover:to-blue-200 active:scale-95 transition-all shadow-sm hover:shadow-md">
-          <div class="flex items-center gap-3">
-            <span class="text-2xl">💧</span>
-            <span class="font-bold text-blue-700">Water</span>
-          </div>
-          <span class="text-xs font-bold text-blue-500 bg-white/50 px-2 py-1 rounded">+80 XP</span>
+          class="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-full shadow-lg transition-transform active:scale-90"
+          title="Water (+80 XP)">
+          💧
         </button>
 
-        <!-- Till Soil with Cooldown -->
         @let timeLeft = 60 - ((now() - lastTillTime()) / 1000);
         @let canTill = timeLeft <= 0 || lastTillTime()===0; <button (click)="tillSoil()" [disabled]="!canTill"
-          class="w-full group flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-stone-50 to-stone-100 border border-stone-200 hover:from-stone-100 hover:to-stone-200 active:scale-95 transition-all shadow-sm hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed">
-          <div class="flex items-center gap-3">
-            <span class="text-2xl">🚜</span>
-            <div class="flex flex-col items-start">
-              <span class="font-bold text-stone-700">Till Soil</span>
-              @if (!canTill) {
-              <span class="text-[0.6rem] text-red-500 font-bold">Cooldown: {{ timeLeft | number:'1.0-0' }}s</span>
-              }
-            </div>
-          </div>
-          <span class="text-xs font-bold text-stone-500 bg-white/50 px-2 py-1 rounded">+80 XP</span>
+          class="bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 text-white p-4 rounded-full shadow-lg transition-transform active:scale-90 relative"
+          title="Till Soil">
+          🚜
+          @if (!canTill) {
+          <span
+            class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full">{{
+            timeLeft | number:'1.0-0' }}</span>
+          }
           </button>
       </div>
     </div>
 
   </div>
+
+  <!-- Game Over Modal -->
+  @if (isGameOver()) {
+  <div class="absolute inset-0 z-50 bg-black/80 flex items-center justify-center backdrop-blur-sm">
+    <div
+      class="bg-white p-8 rounded-3xl shadow-2xl max-w-md w-full text-center border-4 border-amber-500 animate-grow-pop">
+      <h2 class="text-4xl font-black text-gray-800 mb-2">Forest Full!</h2>
+      <p class="text-gray-500 mb-6">No more space to plant new seeds.</p>
+
+      <div class="py-6 border-y border-gray-100 mb-6">
+        <div class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">Final Score</div>
+        <div class="text-6xl font-black text-amber-500">{{ totalScore() | number }}</div>
+      </div>
+
+      <button (click)="restartGame()"
+        class="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all text-xl">
+        Play Again 🔄
+      </button>
+    </div>
+  </div>
+  }
+
 </div>

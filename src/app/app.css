@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 @keyframes floatUp {
   0% {
     opacity: 0;
@@ -36,4 +40,47 @@
 
 .animate-wind {
   animation: windMove 3s linear infinite;
+}
+
+/* Biome Backgrounds */
+.bg-biome-plains {
+  background-image: url('/assets/biomes/plains.png');
+  background-size: cover;
+  background-position: center bottom;
+}
+
+.bg-biome-desert {
+  background-image: url('/assets/biomes/desert.png');
+  background-size: cover;
+  background-position: center bottom;
+}
+
+.bg-biome-mud {
+  background-image: url('/assets/biomes/mud.png');
+  background-size: cover;
+  background-position: center bottom;
+}
+
+.bg-biome-forest {
+  background-image: url('/assets/biomes/forest.png');
+  background-size: cover;
+  background-position: center bottom;
+}
+
+.bg-biome-underwater {
+  background-image: url('/assets/biomes/underwater.png');
+  background-size: cover;
+  background-position: center bottom;
+}
+
+.bg-biome-lava {
+  background-image: url('/assets/biomes/lava.png');
+  background-size: cover;
+  background-position: center bottom;
+}
+
+.bg-biome-space {
+  background-image: url('/assets/biomes/space.png');
+  background-size: cover;
+  background-position: center;
 }

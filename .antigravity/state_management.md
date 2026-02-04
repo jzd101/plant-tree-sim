@@ -45,12 +45,25 @@ Derived values that update automatically when core signals change.
 ### `gainExperience(amount)`
 - **updates**: `experience`.
 - **Logic**:
+  - **Growth Multiplier**: Multiplies XP by `growthMultiplier` (from Wildcard buffs).
+  - **Critical Hit**: 20% chance to trigger a Critical Hit.
+    - **Effect**: Multiplies gained XP by 5x (Huge Growth Spurt).
+    - **Visual**: Triggers "CRITICAL!" UI overlay.
   - Adds XP.
   - **Level Up Loop**: If `experience >= xpRequired`:
     - Decrements XP.
     - Increments `level`.
-    - **Migration**: Preserves birds by migrating them to new slots on the newly generated tree.
     - **Spawn Logic**: Triggers fruit spawns based on new level probability.
+
+### **Wildcard Items**
+New gameplay mechanic allowing players to gamble Score for random effects.
+- **Mystery Potion** (Cost: 500):
+  - **Tier 1**: Generally safe buffs.
+  - **Effect**: 50% Speed Boost, 30% Super Speed, 10% Instant Level Up, 10% Drought (Slow).
+- **Chaos Seed** (Cost: 1500):
+  - **Tier 2**: High risk, high reward.
+  - **Effects**: 30% Mega Growth (10x), 10% Instant Maturity, 20% Score Penalty, **40% Tree Death (CATASTROPHE)**.
+- **Cooldown**: Randomized (1s to 600s) after every use.
 
 ### `spawnFruit()` / `spawnBird()`
 - **updates**: `activeFruits` / `activeBirds`.

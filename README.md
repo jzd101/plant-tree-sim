@@ -4,30 +4,25 @@ A specialized, procedural plant growth simulation game built with **Angular 21**
 
 ## 🌟 Features
 
--   **Procedural Growth Engine**: The plant grows organically using mathematical curves (Quadratic Bezier) and recursive branching algorithms. No two trees are exactly alike!
--   **Dynamic Stages**:
-    -   🌱 **Seed Stage** (Level 1-3)
-    -   🌿 **Sprout Stage** (Level 4-8)
-    -   🎋 **Sapling Stage** (Level 9-16)
-    -   🌳 **Tree Stage** (Level 17+ with recursive complexity)
--   **Economy System**: Earn Gold 💰 by harvesting fruits, spend it on upgrades.
--   **Interactive Controls**:
-    -   **Pan & Zoom**: Infinite canvas navigation.
-    -   **Water & Till**: Active care mechanics to gain XP.
-    -   **Harvest**: Click golden fruits to collect rewards.
--   **Shop & Upgrades**:
-    -   **Instant Fertilizer**: Boost XP and chance for golden flowers.
-    -   **Birds**: Buy companions that perch on your tree.
--   **Modern Tech Stack**: Built with Angular 19+ Signals (`signal`, `computed`) for reactive high-performance state management.
+
+-   **Game Overhaul**: Now an infinite progression arcade game!
+-   **Infinite Biomes**: Cycle through 7 themes: Green Plains, Desert 🌵, Mud, Forest 🌲, Deep Sea 🌊, Lava Volcano 🌋, and Cosmic Void 🌌.
+-   **Persistent Garden**: Plant tree after tree until the screen is full. Old trees remain as a backdrop.
+-   **Score Attack**: Earn points based on how fast you complete a tree's lifecycle (Level 20).
+-   **Procedural Growth**: Biome-specific color palettes and growth modifiers.
 
 ## 🎮 How to Play
 
 ### 1. The Core Loop
-1.  **Gain XP**: Water your plant 💧 and Till the soil 🚜 to earn Experience Points.
-2.  **Level Up**: When XP fills the bar, your plant levels up!
-3.  **Wait for Fruits**: As your plant grows, Golden Fruits 🍋 will spawn.
-4.  **Harvest**: Click fruits to collect Gold 💰.
-5.  **Upgrade**: Use Gold in the shop to speed up progress.
+1.  **Grow**: Water/Till your current active tree.
+2.  **Maturity**: Reach **Level 20** to complete the tree.
+3.  **Score**: Get points based on speed. Faster = Higher Score.
+4.  **Repeat**: The tree becomes part of the scenery. A new seed spawns in a new valid spot.
+5.  **Game Over**: When there is no space left to plant a new seed.
+
+### 2. Biomes
+Every time you complete a tree, the **Biome** changes, altering the environment and the look of the next tree:
+Green -> Desert -> Mud -> Forest -> Deep Sea -> Lava -> Space.
 
 ### 2. Controls
 -   **Left Click (on buttons)**: Perform actions (Water, Till, Buy).

@@ -45,14 +45,13 @@ The plant growth is divided into 4 algorithmic stages based on the `level`.
 ### 4. Tree Generation (`generateTree`)
 - **Applies**: Level 17+.
 - **Logic**: **Recursive Fractal Generation**.
-- **Function**: `drawBranch(x, y, angle, length, depth, width...)`
-  - **Base Case**: If `depth === 0`, draw lush leaf tips/flowers/fruits.
-  - **Recursive Step**:
-    - Draw current branch segment (Quadratic Curve).
-    - Randomly spawn "Twigs" (secondary small branches) along the segment.
-    - Recursively call `drawBranch` twice (Left and Right) with reduced length (`* 0.85`) and width.
-  - **Depth Control**: Depth increases with level, capped at 7 to prevent performance issues.
+- **Function**: `branch(x, y, angle, length, width, depth)`
+  - **Organic Sway**: Adds randomized sine-wave sway to branch curves.
+  - **Branching**:
+    - Splits into 2-3 sub-branches based on `branchComplexity`.
+    - Calculates a random "Spread Angle" (50-70 degrees).
+    - Distributes branches evenly across the spread arc.
+  - **Depth Control**: Depth is calculated from Level (`2 + floor(lvl/3)`), capped at 8.
 - **Assets**:
   - **Flowers**: 15% chance at tips (Level 8+).
   - **Fruits**: Low chance at tips (Level 15+).
-  - **Roots**: Replaces the Pot with root paths.

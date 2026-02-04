@@ -6,11 +6,15 @@ This directory contains the "Inside-Out" documentation of the Plant Tree Sim pro
 
 1.  **[Inner Layer: Math & Algorithms](./math_and_algorithms.md)**
     -   *Pure Logic, No Side Effects.*
-    -   Procedural generation algorithms.
-    -   Mathematical helpers (Bezier curves, RNG).
-    -   Growth stage definitions.
+    -   `logic/biome-generator.ts`: Biome palettes and cycling.
+    -   `logic/collision-system.ts`: Spawn position validation and Game Over logic.
+    -   `math_and_algorithms.md`: Procedural generation algorithms (Bezier curves).
 
 2.  **[Middle Layer: State Management](./state_management.md)**
+    -   *Orchestration & Data Flow.*
+    -   `models.ts`: Interface definitions (`Biome`, `TreeEntity`).
+    -   Angular Signals (`activeTree`, `legacyTrees`).
+    -   Game Loop: Biome transition and Scoring.
     -   *Orchestration & Data Flow.*
     -   Angular Signals (`level`, `experience`).
     -   Computed State (`treeData`, `viewBox`).
