@@ -12,8 +12,6 @@ export class App {
   // Game State Signals
   readonly level = signal(1);
   readonly experience = signal(0);
-  readonly lifespan = signal(0); // Deprecated
-  readonly isDead = signal(false); // Deprecated but kept to avoid immediate break, will clean up methods next
 
   // Cooldown State
   readonly lastTillTime = signal(0);
@@ -89,7 +87,7 @@ export class App {
     // Tree Stage (Lv 17+) -> Grows every 5 levels
     // Base size + (Level - 17) scaling, but stepped every 5 levels
     const treeGrowthStep = Math.floor((lvl - 17) / 5);
-    return this.generateTree(17 + (treeGrowthStep * 2), false);
+    return this.generateTree(17 + (treeGrowthStep * 2));
   });
 
   // Extract just the paths for rendering
@@ -350,7 +348,7 @@ export class App {
     return { paths, slots };
   }
 
-  private generateTree(lvl: number, isDead: boolean) {
+  private generateTree(lvl: number) {
     const paths: any[] = [];
     const slots: any[] = [];
 
@@ -360,7 +358,7 @@ export class App {
     // As level grows, depth increases.
     const maxDepth = Math.max(2, Math.min(Math.floor((lvl - 12) / 2), 7));
 
-    const trunkColor = isDead ? '#4B5563' : '#8B4513';
+    const trunkColor = '#8B4513';
 
     // Recursive Branch Function
     const drawBranch = (x: number, y: number, angle: number, length: number, depth: number, width: number, pathId: string) => {
@@ -381,7 +379,7 @@ export class App {
       });
 
       // Add Twigs
-      if (width > 2 && !isDead) {
+      if (width > 2) {
         const hasTwig = this.pseudoRandom(x + y + depth) > 0.4;
         if (hasTwig) {
           const twigDir = (this.pseudoRandom(x) > 0.5 ? 1 : -1);
@@ -421,7 +419,7 @@ export class App {
         const spread = 25 + (this.pseudoRandom(depth) * 10);
         drawBranch(endX, endY, angle - spread, length * 0.85, depth - 1, width * 0.7, pathId + 'L');
         drawBranch(endX, endY, angle + spread, length * 0.85, depth - 1, width * 0.7, pathId + 'R');
-      } else if (!isDead) {
+      } else {
         // Tips: Lush Leaf Cluster
         const baseLeafColor = this.getLeafColor(endX);
 
@@ -494,7 +492,6 @@ export class App {
     // Game Loop (Every 1s)
     setInterval(() => {
       this.now.set(Date.now());
-      // No death logic anymore
     }, 1000);
   }
 
@@ -647,8 +644,6 @@ export class App {
   reset() {
     this.level.set(1);
     this.experience.set(0);
-    this.lifespan.set(300);
-    this.isDead.set(false);
     this.activeFruits.set(new Set());
     this.gold.set(0);
     this.fertilizerLevel.set(0);
